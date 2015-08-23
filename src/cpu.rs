@@ -1,8 +1,10 @@
+extern crate rand;
+
+use rand::Rng;
 use std::thread;
 
 use mem::Memory;
 use display::Display;
-use prng::Prng;
 
 static FONTS: &'static [u8] = &[
     0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
@@ -26,7 +28,6 @@ static FONTS: &'static [u8] = &[
 pub struct Cpu {
     memory: Memory, 
     display: Display,
-    prng: Prng,
 
     registers: [u8; 16], // V1, V2, ..., VF
     register_index: u16, // VI
@@ -47,7 +48,6 @@ impl Cpu {
         Cpu { 
             memory: memory,
             display: Display::new(),
-            prng: Prng::new(),
 
             registers: [0; 16],
             register_index: 0,
@@ -102,8 +102,7 @@ impl Cpu {
 
     // TODO: Oh god get the random crate pls
     fn random_byte(&mut self) -> u8 {
-        let rand = self.prng.next();
-        rand as u8
+        rand::thread_rng().gen_range(0, 255)
     }
 
     fn random_register(&mut self, reg_index: &u8, and_with: &u8) {
