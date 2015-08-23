@@ -26,17 +26,17 @@ impl Display {
         }
     }
 
-    pub fn print(&self) {
-        // backspace a bunch
-        /*
-        for _ in (0..(64*32 * 2)) {
-            print!("\x08");
-        }
-        */
+    pub fn clear(&self) {
+        // this incredibly portable command clears the screen in osx
         print!("\x1b\x5b\x48\x1b\x5b\x32\x4a");
+    }
+
+    pub fn print(&self) {
+        self.clear();
+
         for row in &self.display {
             for &cell in row.iter() {
-                print!("{}", if cell { 1 } else { 0 });
+                print!("{}", if cell { '█' } else { ' ' });
             }
             println!("");
         }
