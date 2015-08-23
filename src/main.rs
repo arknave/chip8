@@ -4,6 +4,7 @@ use std::io;
 
 pub mod cpu;
 pub mod mem;
+pub mod display;
 
 fn read_from_file(path: &str, vec: &mut Vec<u8>) -> io::Result<usize> {
     use std::io::Read;

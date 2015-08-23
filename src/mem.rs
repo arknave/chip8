@@ -1,6 +1,7 @@
 use std::ops::Index;
 use std::ops::IndexMut;
 
+// TODO: make internals private
 pub struct Memory {
     memory: [u8; 0x1000],
 }
@@ -8,6 +9,11 @@ pub struct Memory {
 impl Memory {
     pub fn new() -> Self {
         Memory { memory: [0; 0x1000] }
+    }
+
+    // TODO: Figure out if this is a slice.
+    pub fn slice(&self, start: &u16, length: &u16) -> &[u8] {
+        &self.memory[(*start as usize)..((*start + *length) as usize)]
     }
 }
 
