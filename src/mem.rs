@@ -8,7 +8,9 @@ pub struct Memory {
 
 impl Memory {
     pub fn new() -> Self {
-        Memory { memory: [0; 0x1000] }
+        Memory {
+            memory: [0; 0x1000],
+        }
     }
 
     // TODO: Figure out if this is a slice.

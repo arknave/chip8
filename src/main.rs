@@ -3,8 +3,8 @@ use std::fs::File;
 use std::io;
 
 pub mod cpu;
-pub mod mem;
 pub mod display;
+pub mod mem;
 
 extern crate rand;
 
@@ -30,7 +30,7 @@ fn main() {
     let mut cpu = cpu::Cpu::new();
 
     let file_path = args.last().expect("Need a valid filename");
-    let mut rom = vec!();
+    let mut rom = vec![];
     read_from_file(&file_path, &mut rom).unwrap();
     cpu.run(rom);
 }
