@@ -8,12 +8,6 @@ pub mod mem;
 
 extern crate rand;
 
-fn read_from_file(path: &str, vec: &mut Vec<u8>) -> io::Result<usize> {
-    use std::io::Read;
-    let mut f = try!(File::open(path));
-    f.read_to_end(vec)
-}
-
 /**
  * Necessary steps:
  * 1. read in files
@@ -21,7 +15,7 @@ fn read_from_file(path: &str, vec: &mut Vec<u8>) -> io::Result<usize> {
  * 3. execute bytecode
  * 4. handle display & sound
  */
-fn main() {
+fn main() -> io::Result<()> {
     let args = env::args();
     if args.len() != 2 {
         panic!("Need a filename passed in");
@@ -30,7 +24,8 @@ fn main() {
     let mut cpu = cpu::Cpu::new();
 
     let file_path = args.last().expect("Need a valid filename");
-    let mut rom = vec![];
-    read_from_file(&file_path, &mut rom).unwrap();
+    let rom: Vec<u8> = std::fs::read(file_path)?;
     cpu.run(rom);
+
+    Ok(())
 }

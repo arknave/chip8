@@ -1,10 +1,11 @@
 extern crate rand;
 
 use rand::Rng;
-use std::thread;
 
-use display::Display;
-use mem::Memory;
+use std::time;
+
+use crate::display::Display;
+use crate::mem::Memory;
 
 static FONTS: &'static [u8] = &[
     0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
@@ -84,44 +85,44 @@ impl Cpu {
         (opcode != 0x1000 | self.pc) || (opcode != 0x0000)
     }
 
-    fn read_register(&self, reg_index: &u8) -> u8 {
-        self.registers[(*reg_index) as usize]
+    fn read_register(&self, reg_index: u8) -> u8 {
+        self.registers[reg_index as usize]
     }
 
-    fn register_equal(&self, reg_index: &u8, value: &u8) -> bool {
-        self.read_register(reg_index) == *value
+    fn register_equal(&self, reg_index: u8, value: u8) -> bool {
+        self.read_register(reg_index) == value
     }
 
-    fn load_register(&mut self, reg_index: &u8, value: &u8) {
-        self.registers[(*reg_index) as usize] = *value;
+    fn load_register(&mut self, reg_index: u8, value: u8) {
+        self.registers[reg_index as usize] = value;
     }
 
-    fn load_register_index(&mut self, value: &u16) {
-        self.register_index = *value;
+    fn load_register_index(&mut self, value: u16) {
+        self.register_index = value;
     }
 
     fn random_byte(&mut self) -> u8 {
         rand::thread_rng().gen_range(0, 255)
     }
 
-    fn random_register(&mut self, reg_index: &u8, and_with: &u8) {
-        let random = self.random_byte() & (*and_with);
-        self.load_register(reg_index, &random);
+    fn random_register(&mut self, reg_index: u8, and_with: u8) {
+        let random = self.random_byte() & and_with;
+        self.load_register(reg_index, random);
     }
 
     /**
      * Display a sprite. The sprite begins at (Vx, Vy), and is sprite_size lines tall.
      * Read the sprite in from memory from VI
      */
-    fn draw_sprite(&mut self, reg_x: &u8, reg_y: &u8, sprite_size: &u8) {
+    fn draw_sprite(&mut self, reg_x: u8, reg_y: u8, sprite_size: u8) {
         let vx = self.read_register(reg_x);
         let vy = self.read_register(reg_y);
 
         let sprite = self
             .memory
-            .slice(&self.register_index, &(*sprite_size as u16));
+            .slice(&self.register_index, &(sprite_size as u16));
         self.display
-            .draw_sprite(&mut self.registers[15], &vx, &vy, &sprite);
+            .draw_sprite(&mut self.registers[15], vx, vy, &sprite);
         self.display.print();
     }
 
@@ -163,66 +164,66 @@ impl Cpu {
                 advance_pc = false;
             }
             0x3000 => {
-                if self.register_equal(&x, &kk) {
+                if self.register_equal(x, kk) {
                     advance_pc = false;
                     self.pc += 4;
                 }
             }
             0x4000 => {
-                if !self.register_equal(&x, &kk) {
+                if !self.register_equal(x, kk) {
                     advance_pc = false;
                     self.pc += 4;
                 }
             }
             0x5000 => {
-                let vy = self.read_register(&y);
-                if self.register_equal(&x, &vy) {
+                let vy = self.read_register(y);
+                if self.register_equal(x, vy) {
                     advance_pc = false;
                     self.pc += 4;
                 }
             }
-            0x6000 => self.load_register(&x, &kk),
+            0x6000 => self.load_register(x, kk),
             0x7000 => {
-                let new = self.read_register(&x).wrapping_add(kk);
-                self.load_register(&x, &new);
+                let new = self.read_register(x).wrapping_add(kk);
+                self.load_register(x, new);
             }
             0x8000 => match n {
                 0x0 => {
-                    let vy = self.read_register(&y);
-                    self.load_register(&x, &vy);
+                    let vy = self.read_register(y);
+                    self.load_register(x, vy);
                 }
                 0x2 => {
-                    let new = self.read_register(&x) & self.read_register(&y);
-                    self.load_register(&x, &new);
+                    let new = self.read_register(x) & self.read_register(y);
+                    self.load_register(x, new);
                 }
                 0x4 => {
                     // TODO: Figure out a better way to do carry detection
-                    let big_new = (self.read_register(&x) as u16) + (self.read_register(&y) as u16);
+                    let big_new = (self.read_register(x) as u16) + (self.read_register(y) as u16);
                     let new = big_new as u8;
-                    self.load_register(&x, &new);
+                    self.load_register(x, new);
                     self.registers[15] = if big_new > 255 { 1 } else { 0 };
                 }
                 0x6 => {
-                    let old = self.read_register(&x);
+                    let old = self.read_register(x);
                     self.registers[15] = old & 1;
                     let new = old / 2;
-                    self.load_register(&x, &new);
+                    self.load_register(x, new);
                 }
                 0xE => {
-                    let old = self.read_register(&x);
+                    let old = self.read_register(x);
                     self.registers[15] = (old & 0x80 > 0) as u8;
                     let new = old * 2;
-                    self.load_register(&x, &new);
+                    self.load_register(x, new);
                 }
                 _ => self.unimplemented(opcode),
             },
-            0xA000 => self.load_register_index(&nnn),
-            0xC000 => self.random_register(&x, &kk),
-            0xD000 => self.draw_sprite(&x, &y, &n),
+            0xA000 => self.load_register_index(nnn),
+            0xC000 => self.random_register(x, kk),
+            0xD000 => self.draw_sprite(x, y, n),
             0xF000 => match kk {
                 0x1E => {
-                    let new = self.register_index + (self.read_register(&x) as u16);
-                    self.load_register_index(&new);
+                    let new = self.register_index + (self.read_register(x) as u16);
+                    self.load_register_index(new);
                 }
                 0x55 => {
                     let index = self.register_index;
@@ -263,7 +264,7 @@ impl Cpu {
         }
 
         if self.sound > 0 {
-            println!('\x07');
+            println!("{}", '\x07');
         }
     }
 
@@ -283,7 +284,7 @@ impl Cpu {
             self.update_timers();
             self.update_inputs();
 
-            std::thread::sleep_ms(10);
+            std::thread::sleep(time::Duration::from_millis(10));
         }
     }
 }

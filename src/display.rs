@@ -10,15 +10,10 @@ impl Display {
         }
     }
 
-    pub fn draw_sprite(
-        &mut self,
-        start_col: &u8,
-        start_row: &u8,
-        sprite: &[u8],
-    ) {
-        let mut row: usize = *start_row as usize;
+    pub fn draw_sprite(&mut self, collision: &mut u8, start_col: u8, start_row: u8, sprite: &[u8]) {
+        let mut row: usize = start_row as usize;
         for &byte in sprite {
-            let mut col: usize = *start_col as usize;
+            let mut col: usize = start_col as usize;
             let mut mask = 0x80;
             while mask > 0 {
                 self.display[row][col] ^= byte & mask > 0;
