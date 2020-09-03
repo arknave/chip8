@@ -1,5 +1,5 @@
 use std::env;
-use std::fs::File;
+use std::fs;
 use std::io;
 
 pub mod cpu;

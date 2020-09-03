@@ -192,31 +192,59 @@ impl Cpu {
                     let vy = self.read_register(y);
                     self.load_register(x, vy);
                 }
+                0x1 => {
+                    let new = self.read_register(x) | self.read_register(y);
+                    self.load_register(x, new);
+                }
                 0x2 => {
                     let new = self.read_register(x) & self.read_register(y);
                     self.load_register(x, new);
                 }
-                0x4 => {
-                    // TODO: Figure out a better way to do carry detection
-                    let big_new = (self.read_register(x) as u16) + (self.read_register(y) as u16);
-                    let new = big_new as u8;
+                0x3 => {
+                    let new = self.read_register(x) ^ self.read_register(y);
                     self.load_register(x, new);
-                    self.registers[15] = if big_new > 255 { 1 } else { 0 };
+                }
+                0x4 => {
+                    let vx = self.read_register(x);
+                    let vy = self.read_register(x);
+                    let (new, did_wrap) = vx.overflowing_add(vy);
+                    self.load_register(x, new);
+                    self.registers[15] = if did_wrap { 1 } else { 0 };
+                }
+                0x5 => {
+                    let vx = self.read_register(x);
+                    let vy = self.read_register(x);
+                    let (new, did_wrap) = vx.overflowing_sub(vy);
+                    self.load_register(x, new);
+                    self.registers[15] = if did_wrap { 0 } else { 1 };
                 }
                 0x6 => {
                     let old = self.read_register(x);
                     self.registers[15] = old & 1;
-                    let new = old / 2;
+                    let new = old >> 1;
                     self.load_register(x, new);
+                }
+                0x7 => {
+                    let vx = self.read_register(x);
+                    let vy = self.read_register(x);
+                    let (new, did_wrap) = vy.overflowing_sub(vx);
+                    self.load_register(x, new);
+                    self.registers[15] = if did_wrap { 0 } else { 1 };
                 }
                 0xE => {
                     let old = self.read_register(x);
                     self.registers[15] = (old & 0x80 > 0) as u8;
-                    let new = old * 2;
+                    let new = old << 1;
                     self.load_register(x, new);
                 }
                 _ => self.unimplemented(opcode),
             },
+            0x9000 => {
+                if self.read_register(x) != self.read_register(y) {
+                    self.pc += 4;
+                    advance_pc = false;
+                }
+            }
             0xA000 => self.load_register_index(nnn),
             0xC000 => self.random_register(x, kk),
             0xD000 => self.draw_sprite(x, y, n),
