@@ -98,10 +98,12 @@ impl Cpu {
         fuse(self.memory[pc], self.memory[pc + 1])
     }
 
+    /*
     fn running(&self) -> bool {
         let opcode = self.read_opcode();
         (opcode != 0x1000 | self.pc) || (opcode != 0x0000)
     }
+    */
 
     fn read_register(&self, reg_index: u8) -> u8 {
         self.registers[reg_index as usize]
