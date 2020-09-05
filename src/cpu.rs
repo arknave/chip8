@@ -1,11 +1,8 @@
-extern crate rand;
-
 use rand::Rng;
 
-use std::time;
+use rand;
 
 use crate::display::Display;
-use crate::mem::Memory;
 
 static FONTS: &'static [u8] = &[
     0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
@@ -26,6 +23,15 @@ static FONTS: &'static [u8] = &[
     0xF0, 0x80, 0xF0, 0x80, 0x80, // F
 ];
 
+const FONT_OFFSET: usize = 0x50;
+const PROG_START: usize = 0x200;
+const MEM_SIZE: usize = 0x1000;
+type Memory = [u8; MEM_SIZE];
+
+fn fuse(a: u8, b: u8) -> u16 {
+    ((a as u16) << 8) | (b as u16)
+}
+
 pub struct Cpu {
     memory: Memory,
     display: Display,
@@ -42,17 +48,23 @@ pub struct Cpu {
 }
 
 impl Cpu {
-    pub fn new() -> Self {
-        let mut memory = Memory::new();
+    pub fn new(rom: &Vec<u8>) -> Self {
+        let mut memory = [0; MEM_SIZE];
         Cpu::set_digits(&mut memory);
 
+        let mut offset: usize = PROG_START;
+        for &byte in rom {
+            memory[offset] = byte;
+            offset += 1;
+        }
+
         Cpu {
-            memory: memory,
+            memory,
             display: Display::new(),
 
             registers: [0; 16],
             register_index: 0,
-            pc: 0x200,
+            pc: PROG_START as u16,
 
             stack: [0; 16],
             sp: 0,
@@ -62,26 +74,32 @@ impl Cpu {
         }
     }
 
+    pub fn opcodes(&self) -> impl Iterator<Item = u16> + '_ {
+        self.memory[(self.pc as usize)..]
+            .chunks_exact(2)
+            .map(|bytes| fuse(bytes[0], bytes[1]))
+            .into_iter()
+    }
+
+    pub fn display_bits(&self) -> crate::display::Screen {
+        self.display.screen
+    }
+
     fn set_digits(memory: &mut Memory) {
-        let mut offset = 0x50;
+        let mut offset = FONT_OFFSET;
         // read from fonts into memory
         for &byte in FONTS {
             memory[offset] = byte;
             offset += 1;
         }
     }
-
-    fn load_rom(&mut self, bytes: Vec<u8>) {
-        let mut offset = 0x200;
-        for byte in bytes {
-            self.memory[offset] = byte;
-            offset += 1;
-        }
+    fn read_opcode(&self) -> u16 {
+        let pc = self.pc as usize;
+        fuse(self.memory[pc], self.memory[pc + 1])
     }
 
     fn running(&self) -> bool {
-        let opcode = ((self.memory[self.pc] as u16) << 8) | (self.memory[self.pc + 1] as u16);
-        //println!("{:04x}: {:04x}", self.pc, opcode);
+        let opcode = self.read_opcode();
         (opcode != 0x1000 | self.pc) || (opcode != 0x0000)
     }
 
@@ -118,20 +136,21 @@ impl Cpu {
         let vx = self.read_register(reg_x);
         let vy = self.read_register(reg_y);
 
-        let sprite = self
-            .memory
-            .slice(&self.register_index, &(sprite_size as u16));
+        // TODO: Redo slice
+        let start = self.register_index as usize;
+        let sprite: &[u8] = &self.memory[start..(start + sprite_size as usize)];
+
         self.display
-            .draw_sprite(&mut self.registers[15], vx, vy, &sprite);
-        self.display.print();
+            .draw_sprite(&mut self.registers[15], vx, vy, sprite);
+        // self.display.print();
     }
 
     /**
      * Execute a single instruction.
      */
-    fn step(&mut self) {
+    fn run_instruction(&mut self) {
         // read in 2 bytes
-        let opcode: u16 = ((self.memory[self.pc] as u16) << 8) | (self.memory[self.pc + 1] as u16);
+        let opcode = self.read_opcode();
         let mut advance_pc = true;
 
         if opcode == 0x0000 {
@@ -255,14 +274,14 @@ impl Cpu {
                 }
                 0x55 => {
                     let index = self.register_index;
-                    for reg in 0..(x + 1) {
-                        self.memory[index + (reg as u16)] = self.registers[reg as usize];
+                    for reg in 0..(x as u16 + 1) {
+                        self.memory[(index + reg) as usize] = self.registers[reg as usize];
                     }
                 }
                 0x65 => {
                     let index = self.register_index;
-                    for reg in 0..(x + 1) {
-                        self.registers[reg as usize] = self.memory[index + (reg as u16)];
+                    for reg in 0..(x as u16 + 1) {
+                        self.registers[reg as usize] = self.memory[(index + reg) as usize];
                     }
                 }
                 _ => self.unimplemented(opcode),
@@ -292,27 +311,18 @@ impl Cpu {
         }
 
         if self.sound > 0 {
-            println!("{}", '\x07');
+            // println!("{}", '\x07');
         }
+    }
+
+    pub fn step(&mut self) {
+        self.run_instruction();
+        self.update_timers();
+        self.update_inputs();
     }
 
     /**
      * Update which keys are being held down.
      */
     fn update_inputs(&mut self) {}
-
-    /**
-     * Load and execute a rom.
-     */
-    pub fn run(&mut self, rom: Vec<u8>) {
-        self.load_rom(rom);
-
-        while self.running() {
-            self.step();
-            self.update_timers();
-            self.update_inputs();
-
-            std::thread::sleep(time::Duration::from_millis(10));
-        }
-    }
 }

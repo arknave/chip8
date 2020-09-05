@@ -1,22 +1,37 @@
-// TODO: make internals private
+use std::fmt;
+
+pub type Screen = [[bool; 64]; 32];
+
 pub struct Display {
-    display: [[bool; 64]; 32],
+    pub screen: Screen,
 }
+
+const ZERO_DISPLAY: Screen = [[false; 64]; 32];
 
 impl Display {
     pub fn new() -> Self {
         Display {
-            display: [[false; 64]; 32],
+            screen: ZERO_DISPLAY,
         }
     }
 
-    pub fn draw_sprite(&mut self, collision: &mut u8, start_col: u8, start_row: u8, sprite: &[u8]) {
+    pub fn clear(&mut self) {
+        self.screen = ZERO_DISPLAY;
+    }
+
+    pub fn draw_sprite(
+        &mut self,
+        _collision: &mut u8,
+        start_col: u8,
+        start_row: u8,
+        sprite: &[u8],
+    ) {
         let mut row: usize = start_row as usize;
         for &byte in sprite {
             let mut col: usize = start_col as usize;
             let mut mask = 0x80;
             while mask > 0 {
-                self.display[row][col] ^= byte & mask > 0;
+                self.screen[row][col] ^= byte & mask > 0;
                 col += 1;
                 col %= 64;
                 mask /= 2;
@@ -25,20 +40,19 @@ impl Display {
             row %= 32;
         }
     }
+}
 
-    pub fn clear(&self) {
-        // this incredibly portable command clears the screen in osx
-        print!("\x1b\x5b\x48\x1b\x5b\x32\x4a");
-    }
+impl fmt::Debug for Display {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use std::fmt::Write;
 
-    pub fn print(&self) {
-        self.clear();
-
-        for row in &self.display {
+        for row in &self.screen {
             for &cell in row.iter() {
-                print!("{}", if cell { '█' } else { ' ' });
+                f.write_char(if cell { '█' } else { ' ' })?;
             }
-            println!("");
+            f.write_char('\n')?;
         }
+
+        Ok(())
     }
 }
